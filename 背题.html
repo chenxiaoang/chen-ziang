@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>三菱PLC题库练习</title>
+    <style>
+        /* 页面整体居中 */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #f0f0f2;
+        }
+        .container {
+            width: 100%;
+            max-width: 850px;
+            padding: 25px;
+            box-sizing: border-box;
+            background-color: #fff;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .mode-btn {
+            padding: 8px 16px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .active-mode {
+            background: #4CAF50;
+            color: white;
+            border-radius: 5px;
+        }
+        .question {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f8f8;
+            border-left: 5px solid #4CAF50;
+            border-radius: 6px;
+        }
+        .question h3 {
+            margin: 0;
+            font-size: 1.1em;
+        }
+        .options {
+            margin-top: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+        .option {
+            padding: 10px 16px;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            cursor: pointer;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            transition: background 0.3s;
+        }
+        .option:hover {
+            background-color: #e0e0e0;
+        }
+        .correct {
+            background-color: #d4edda;
+            border: 1px solid #27a68d;
+        }
+        .wrong {
+            background-color: #f8d7da;
+            border: 1px solid #c94c4c;
+        }
+        .feedback {
+            margin-top: 15px;
+            font-weight: bold;
+            text-align: center;
+        }
+        input[type="text"] {
+            padding: 10px;
+            width: 80%;
+            max-width: 400px;
+            text-align: center;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+        .submit-btn {
+            padding: 8px 16px;
+            margin-top: 10px;
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .submit-btn:hover {
+            background: #1976D2;
+        }
+        .progress-container {
+            display: none;
+            margin: 20px 0;
+        }
+        progress {
+            width: 100%;
+            height: 20px;
+        }
+        .error-list {
+            margin-top: 20px;
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 6px;
+        }
+        ul {
+            list-style: decimal;
+            padding-left: 20px;
+        }
+        button {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>三菱PLC题库练习(陈子昂出品)</h1>
+        <!-- 控制面板 -->
+        <div class="controls">
+            <label><input type="checkbox" id="shuffle-toggle"> 打乱题目</label>
+            <button class="mode-btn active-mode" onclick="setMode('all')">全部题目</button>
+            <button class="mode-btn" onclick="setMode('判断题')">判断题</button>
+            <button class="mode-btn" onclick="setMode('选择题')">选择题</button>
+            <button class="mode-btn" onclick="setMode('填空题')">填空题</button>
+            <button class="mode-btn" onclick="setMode('背题')">背题模式</button>
+        </div>
+        <!-- 进度条 -->
+        <div class="progress-container" id="progress-container">
+            <progress id="progress-bar" value="0" max="100"></progress>
+            <div id="progress-text">已完成 0 / 0 题</div>
+        </div>
+        <!-- 题目容器 -->
+        <div id="quiz-container"></div>
+        <!-- 错题列表 -->
+        <div class="error-list" id="error-list" style="display:none;">
+            <h3>错题记录</h3>
+            <ul id="error-items"></ul>
+            <button onclick="reviewRandomErrors()">🎲 随机练习错题</button>
+        </div>
+        <!-- 控制按钮 -->
+        <div class="controls">
+            <button onclick="prevQuestion()">上一题</button>
+            <button onclick="nextQuestion()">下一题</button>
+            <button onclick="restartQuiz()">重新开始</button>
+        </div>
+    </div>
+
+    <script>
+        // 题库数据（包含判断题、选择题、填空题）
+        const rawQuestions = [
+            // 判断题
+    {
+        type: "判断题",
+        question: "PLC存储器是存放系统程序、用户程序和运算数据的单元。",
+        options: ["√", "×"],
+        answer: "√"
+    },
+    {
+        type: "判断题",
+        question: "PLC是采用存储逻辑和接线逻辑的关系。",
+        options: ["√", "×"],
+        answer: "×"
+    },
+    {
+        type: "判断题",
+        question: "PLC的系统软件为管理程序和用户指令解释程序二大部分。",
+        options: ["√", "×"],
+        answer: "×"
+    },
+    {
+        type: "判断题",
+        question: "PLC中某个元件被选中，代表这个元件的存储单元置 1，失去选中条件，代表这个元件的存储单元置 0。",
+        options: ["√", "×"],
+        answer: "√"
+    },
+    {
+        type: "判断题",
+        question: "输入继电器的线圈可由机内或机外信号驱动。",
+        options: ["√", "×"],
+        answer: "×"
+    },
+    {
+        type: "判断题",
+        question: "使用计数器 C201作加法计数时，特殊辅助继电器 M8201应处于接通或置 1状态。",
+        options: ["√", "×"],
+        answer: "×"
+    },
+    {
+        type: "判断题",
+        question: "梯形图中每一行的开始是触点群组成的工作条件，最右边是线圈表达的工作结果。",
+        options: ["√", "×"],
+        answer: "√"
+    },
+    {
+        type: "判断题",
+        question: "几个串联回路并联时，触点最多的串联回路应放在梯形图的最左面。",
+        options: ["√", "×"],
+        answer: "×"
+    },
+    {
+        type: "判断题",
+        question: "选择分支状态转移图中根据条件可从多个分支流程中选择某几个分支执行。",
+        options: ["√", "×"],
+        answer: "×"
+    },
+    {
+        type: "判断题",
+        question: "功能指令助记符前标记（D）符号，表示该指令是脉冲型指令。",
+        options: ["√", "×"],
+        answer: "×"
+    },
+    {
+        type: "判断题",
+        question: "PLC的数据单元也叫软继电器。",
+        options: ["√", "×"],
+        answer: "√"
+    },
+    {
+        type: "判断题",
+        question: "PLC输入输出接口要有良好的抗干扰能力和满足工业现场各类信号的匹配要求。",
+        options: ["√", "×"],
+        answer: "√"
+    },
+    {
+        type: "判断题",
+        question: "PLC的两种基本工作状态是运行状态与停止状态。",
+        options: ["√", "×"],
+        answer: "√"
+    },
+    {
+        type: "判断题",
+        question: "PLC的编程元件可以有无数多个常开、常闭触点。",
+        options: ["√", "×"],
+        answer: "√"
+    },
+    {
+        type: "判断题",
+        question: "掉电保持的通用型继电器具有记忆能力。",
+        options: ["√", "×"],
+        answer: "√"
+    },
+    {
+        type: "判断题",
+        question: "使用一次 MPS指令，便将当前运算结果送入堆栈的第一层，而将原有的数据移到堆栈的下一层。",
+        options: ["√", "×"],
+        answer: "√"
+    },
+    {
+        type: "判断题",
+        question: "梯形图中触点可画在水平线上，也可画在垂直分支线上。",
+        options: ["√", "×"],
+        answer: "×"
+    },
+    {
+        type: "判断题",
+        question: "状态转移图的三要素是：负载驱动、转移条件和转移方向。",
+        options: ["√", "×"],
+        answer: "√"
+    },
+    {
+        type: "判断题",
+        question: "当变址寄存器 V=6时，位组合元件 K2X2V的实际地址为 K2X8。",
+        options: ["√", "×"],
+        answer: "×"
+    },
+    {
+        type: "判断题",
+        question: "PLC系统工作任务管理及应用程序执行都是循环扫描的方式。",
+        options: ["√", "×"],
+        answer: "√"
+    },
+    {
+        type: "判断题",
+        question: "由导线连接决定器件间逻辑关系的控制方式称为接线逻辑；而 PLC则是采用存储逻辑关系。",
+        options: ["√", "×"],
+        answer: "√"
+    },
+    {
+        type: "判断题",
+        question: "构建 PLC系统关系直接相关的性能指标有：一般技术指标、电源技术指标、输入/输出技术指标和性能技术指标。",
+        options: ["√", "×"],
+        answer: "√"
+    },
+    {
+        type: "判断题",
+        question: "FX2系列 PLC编程元件分为两个部分，第一部分是代表功能的字母，第二部分是数字，代表该器件的序号。",
+        options: ["√", "×"],
+        answer: "√"
+    },
+    {
+        type: "判断题",
+        question: "在可编程控制器内部主要用于开关量信息的传递、变换及逻辑处理的编程元件，称为位元件。",
+        options: ["√", "×"],
+        answer: "√"
+    },
+    {
+        type: "判断题",
+        question: "在同一程序中针对某一个线圈的梯形图分支应只有一条（线圈的工作条件是唯一的）。",
+        options: ["√", "×"],
+        answer: "√"
+    },
+            // 选择题（答案字段为选项字母，如 "A"）
+    {
+                type: "选择题",
+        question: "传感器的输出晶体管对于源型须为（  ）集电极开路型",
+        options: ["A、PNP", "B、NPM", "C、PN", "D、NPN"],
+        answer: "A"
+    },
+    {
+        type: "选择题",
+        question: "传感器的输出晶体管对于漏型须为（  ）集电极开路型",
+        options: ["A、NPM", "B、NPN", "C、PNP", "D、PN"],
+        answer: "B"
+    },
+    {
+        type: "选择题",
+        question: "PLC输出接口电路（ ）响应时间最长。",
+        options: ["A、SSR", "B、继电器", "C、双向可控硅", "D、晶体管"],
+        answer: "B"
+    },
+    {type: "选择题",
+        question: "OUT指令对于（  ）是不能使用的",
+        options: ["A、输入继电器", "B、输出继电器", "C、辅助继电器", "D、状态继电器"],
+        answer: "A"
+    },
+    {type: "选择题",
+        question: "串联电路块并联连接时，分支的结束用（  ）指令",
+        options: ["A、AND/ADI", "B、OR/ORI", "C、ORB", "D、ANB"],
+        answer: "C"
+    },
+    {type: "选择题",
+        question: "使用（  ）指令，元件 Y、M仅在驱动断开后的一个扫描周期内动作",
+        options: ["A、PLS", "B、PLF", "C、MPS", "D、MRD"],
+        answer: "B"
+    },
+    {type: "选择题",
+        question: "FX2N的输出继电器最多可达（  ）点",
+        options: ["A、64", "B、128", "C、256", "D、512"],
+        answer: "C"
+    },
+    {type: "选择题",
+        question: "一般要求模拟放大电路的输入电阻（  ）",
+        options: ["A、大些好，输出电阻小些好", "B、小些好，输出电阻大些好", "C、和输出电阻都大些好", "D、和输出电阻都小些好"],
+        answer: "A"
+    },
+    {type: "选择题",
+        question: "FX2N PLC软元件中有（  ）点状态可构成状态转移图。",
+        options: ["A、300", "B、600", "C、900", "D、1200"],
+        answer: "C"
+    },
+    {type: "选择题",
+        question: "对于所有的 FX CPU,表示 1秒时钟脉冲的是（  ）",
+        options: ["A、M8011", "B、M8013", "C、M8014", "D、M8015"],
+        answer: "B"
+    },
+    {type: "选择题",
+        question: "PLC设计规范中，RS232通讯的距离是（  ）",
+        options: ["A、1300m", "B、200m", "C、30m", "D、15m"],
+        answer: "D"
+    },
+    {type: "选择题",
+        question: "电源回路 PLC供电电源一般为（  ）",
+        options: ["A、AC110V", "B、AC85—240V", "C、AC220V", "D、DC36V"],
+        answer: "B"
+    },
+    {
+        type: "选择题",
+        question: "三菱 FX系列 PLC普通输入点，输入响应时间大约是（  ）",
+        options: ["A、100 ms", "B、10ms", "C、15 ms", "D、30 ms"],
+        answer: "B"
+    },
+    {
+        type: "选择题",
+        question: "FX2N系列最多能扩展到（  ）个点",
+        options: ["A、30", "B、128", "C、256", "D、1000"],
+        answer: "C"
+    },
+    {type: "选择题",
+        question: "工业级模拟量，哪一种更容易受干扰（  ）",
+        options: ["A、uA级", "B、mA级", "C、A级", "D、10A级"],
+        answer: "A"
+    },
+    {type: "选择题",
+        question: "在 PLC自控系统中，对于模拟量输入，可用（  ）扩展模块",
+        options: ["A、FX2N-4AD", "B、FX2N-4DA", "C、FX2N-4AD-TC", "D、FX2N-232BD"],
+        answer: "A"
+    },
+    {type: "选择题",
+        question: "FX系列 PLC中 PLD表示（  ）指令",
+        options: ["A、下降沿", "B、上升沿", "C、输入有效", "D、输出有效"],
+        answer: "A"
+    },
+    {type: "选择题",
+        question: "FX系列 PLC中 RST表示（  ）指令",
+        options: ["A、下降沿", "B、上升沿", "C、复位", "D、输出有效"],
+        answer: "C"
+    },
+    {type: "选择题",
+        question: "电力场效应管 MOSFET适于在（  ）条件下工作。",
+        options: ["A、直流", "B、低频", "C、中频", "D、高频"],
+        answer: "D"
+    },
+    {type: "选择题",
+        question: "功能指令（  ）表示主程序结束",
+        options: ["A、RST", "B、END", "C、FEND", "D、NOP"],
+        answer: "B"
+    },
+    {type: "选择题",
+        question: "FX系列 PLC中表示 Run监视常闭触点的是（  ）",
+        options: ["A、M8011", "B、M8000", "C、M8014", "D、M8015"],
+        answer: "B"
+    },
+    {type: "选择题",
+        question: "在 PLC自控系统中，对于温度控制，可用（  ）扩展模块",
+        options: ["A、FX2N-4AD", "B、FX2N-4DA", "C、FX2N-4AD-TC", "D、FX0N-3A"],
+        answer: "C"
+    },
+    {type: "选择题",
+        question: "国内外 PLC各生产厂家都把(  )作为第一用户编程语言",
+        options: ["A、梯形图", "B、指令表", "C、逻辑功能图", "D、C语言"],
+        answer: "A"
+    },
+    {type: "选择题",
+        question: "FX1n系列 PLC是一种普遍选择方案，最多可达（  ）点控制。",
+        options: ["A、128", "B、256", "C、320", "D、350"],
+        answer: "A"
+    },
+    {type: "选择题",
+        question: "在 PLC自控系统中，对于压力输入，可用（  ）扩展模块",
+        options: ["A、FX2N-4AD", "B、FX2N-4DA", "C、FX2N-4AD-TC", "D、FX2N-232BD"],
+        answer: "A"
+    },
+    {type: "选择题",
+        question: "FX系列 PLC中 PLF表示(   )指令",
+        options: ["A、下降沿", "B、上升沿", "C、输入有效", "D、输出有效"],
+        answer: "A"
+    },
+    {type: "选择题",
+        question: "FX系列 PLC中 RST表示（  ）指令",
+        options: ["A、下降沿", "B、上升沿", "C、复位", "D、输出有效"],
+        answer: "C"
+    },
+    {type: "选择题",
+        question: "FX系列 PLC中，16位加法指令应用(   )",
+        options: ["A、DADD", "B、ADD", "C、SUB", "D、MUL"],
+        answer: "B"
+    },
+    {type: "选择题",
+        question: "微机的核心是(   )",
+        options: ["A、存储器", "B、总线", "C、CPU", "D、I/O接口"],
+        answer: "C"
+    },
+    {type: "选择题",
+        question: "M8013是归类于(   )",
+        options: ["A、普通继电器", "B、计数器", "C、特殊辅助继电器", "D、高速计数器"],
+        answer: "C"
+    },
+    {type: "选择题",
+        question: "FX系列 PLC中，32位乘法指令应用是(   )",
+        options: ["A、DADD", "B、ADD", "C、DSUB", "D、DMUL"],
+        answer: "D"
+    },
+    {type: "选择题",
+        question: "FX系列 PLC中，16位除法指令应用(   )",
+        options: ["A、DADD", "B、DDIV", "C、DIV", "D、DMUL"],
+        answer: "C"
+    },
+    {type: "选择题",
+        question: "FX系列 PLC中，位左移指令应用(   )",
+        options: ["A、DADD", "B、DDIV", "C、SFTR", "D、SFTL"],
+        answer: "D"
+    },
+    {type: "选择题",
+        question: "热继电器在电路中做电动机的(   )保护",
+        options: ["A、短路", "B、过载", "C、过流", "D、过压"],
+        answer: "C"
+    },
+    {type: "选择题",
+        question: "步进电机的控制脉冲的电压一般是(   )",
+        options: ["A、DC24V", "B、DC12V", "C、DC5V", "D、AC220V"],
+        answer: "C"
+    },
+    {type: "选择题",
+        question: "对于输出接口电路，(   )型响应时间最长。",
+        options: ["A、晶体管", "B、继电器", "C、SSR", "D、可控硅"],
+        answer: "B"
+    },
+    {type: "选择题",
+        question: "步进电机的细分数代表(   )含义",
+        options: ["A、转一圈的频率", "B、转一圈的脉冲", "C、速度", "D、电机电流"],
+        answer: "A"
+    },
+    {type: "选择题",
+        question: "在选购 PLC时要在实际需要点数的基础上留有一定余量,一般为（  )",
+        options: ["A、1％", "B、5％", "C、10%", "D、20％"],
+        answer: "C"
+    },
+    {type: "选择题",
+        question: "M8013的脉冲输出周期是(   )。",
+        options: ["A、5秒", "B、13秒", "C、10秒", "D、1秒"],
+        answer: "D"
+    },
+    {type: "选择题",
+        question: "PLC一般采用(   )与现场输入信号相连。",
+        options: ["A、光电耦合电路", "B、可控硅电路", "C、晶体管电路", "D、继电器"],
+        answer: "A"
+    },
+    {type: "选择题",
+        question: "操作数 K3Y0表示(   )。",
+        options: ["A、Y0~Y11组成 3个 4位组", "B、Y0~Y11组成 4个 3位组", "C、Y0~Y12组成 3个 4位组", "D、Y0~Y12组成 4个 3位组"],
+        answer: "A"
+    },
+    {type: "选择题",
+        question: "下列指令使用正确的是(   )。",
+        options: ["A、OUT X0", "B、MC M100", "C、SET Y0", "D、OUT T0"],
+        answer: "C"
+    },
+            // 填空题
+            {
+    type: "填空题",
+    question: "PLC的______也叫继电器。",
+    answers: ["数据单元"]
+},
+{
+    type: "填空题",
+    question: "PLC的输入口用来______生产过程的各种参数，输出口用来______PLC运算后得出的控制信息，并通过机外的______完成工业现场的各类控制。",
+    answers: ["接受", "送出","执行机构"]
+},
+{
+    type: "填空题",
+    question: "输入继电器的线圈只能由______信号驱动，在反映器件逻辑关系的梯形图中并不存在。",
+    answers: ["机外"]
+},
+{
+    type: "填空题",
+    question: "PLC的两种基本工作状态是______与______。",
+    answers: ["运行状态", "停止状态"]
+},
+{
+    type: "填空题",
+    question: "掉电保持的通用型继电器具有______能力。",
+    answers: ["记忆"]
+},
+{
+    type: "填空题",
+    question: "使用计数器C201作加法计数时，特殊辅助继电器M8201应处于______或______状态。",
+    answers: ["断开", "置0"]
+},
+{
+    type: "填空题",
+    question: "使用一次MPS指令，便将当前运算结果送入堆栈的______，而将原有的数据移到堆栈的______。",
+    answers: ["第一层", "下一层"]
+},
+{
+    type: "填空题",
+    question: "梯形图中，每一行的开始是触点群组成的______，最右边是线圈表达的______。",
+    answers: ["工作条件", "工作结果"]
+},
+{
+    type: "填空题",
+    question: "梯形图中触点应画在______上，不能画在______上。",
+    answers: ["水平线", "垂直分支线"]
+},
+{
+    type: "填空题",
+    question: "状态转移图中的状态有______、______和______三个要素。",
+    answers: ["驱动负载", "指定转移目标", "指定转移条件"]
+},
+{
+    type: "填空题",
+    question: "当变址寄存器V=6时，位组合元件K2X2V的实际地址为______。",
+    answers: ["K2X10"]
+},
+{
+    type: "填空题",
+    question: "存储器是PLC存放______、______和______的单元。",
+    answers: ["系统程序", "用户程序", "运算数据"]
+},
+{
+    type: "填空题",
+    question: "PLC存储器的存储区域按用途不同，可分为______和______。",
+    answers: ["程序区", "数据区"]
+},
+{
+    type: "填空题",
+    question: "PLC输入输出接口有两个主要要求，一是接口有良好的______，二是接口能满足工业现场各类信号的______。",
+    answers: ["抗干扰能力","匹配要求"]
+},
+{
+    type: "填空题",
+    question: "PLC按硬件的结构类型可分为______、______和______三种。",
+    answers: ["单元式", "模块式", "叠装式"]
+},
+{
+    type: "填空题",
+    question: "PLC中某个元件被选中，代表这个元件的存储单元______，失去选中条件，代表这个元件的存储单元______。",
+    answers: ["1", "0"]
+},
+{
+    type: "填空题",
+    question: "在有几个串联回路并联时，应将触点最多的串联回路放大在梯形图的______。在有几个并联回路串联时，应将触点最多的并联回路放大在梯形图的______。",
+    answers: ["最上面", "最左面"]
+},
+{
+    type: "填空题",
+    question: "功能指令助记符前标记（D）符号，表示该指令是______指令。",
+    answers: ["32位"]
+},
+{
+    type: "填空题",
+    question: "功能指令助记符后标记（P）符号，表示该指令是______指令。",
+    answers: ["脉冲型"]
+},
+{
+    type: "填空题",
+    question: "FX2系列PLC编程元件分为两个部分，第一部分是代表______的字母，第二部分是_______，代表该器件的序号。",
+    answers: ["功能","数字"]
+},
+{
+    type: "填空题",
+    question: "在可编程控制器内部主要用于开关量信息的传递、变换及逻辑处理的编程元件，称为______。",
+    answers: ["位元件"]
+},
+{
+    },
+    ];
+
+        let currentMode = 'all';
+        let filteredQuestions = [];
+        let currentQuestionIndex = 0;
+        let errorQuestions = [];
+        let isShuffleEnabled = false;
+        let userAnswers = [];
+
+        // 洗牌函数（Fisher-Yates算法）
+        function shuffleArray(array) {
+            const arr = [...array];
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        // 设置练习模式
+        function setMode(mode) {
+            isShuffleEnabled = document.getElementById('shuffle-toggle').checked;
+            currentMode = mode;
+            // 高亮当前按钮
+            document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active-mode'));
+            event.target.classList.add('active-mode');
+
+            let tempQuestions = [];
+            if (mode === 'all') {
+                tempQuestions = [...rawQuestions];
+            } else if (mode === '背题') {
+                // ✅ 背题模式仅显示判断题和填空题
+                tempQuestions = [...rawQuestions.filter(q => q.type !== '选择题')];
+            } else {
+                tempQuestions = [...rawQuestions.filter(q => q.type === mode)];
+            }
+
+            if (isShuffleEnabled && mode !== '背题') {
+                filteredQuestions = shuffleArray(tempQuestions);
+            } else {
+                filteredQuestions = tempQuestions;
+            }
+
+            currentQuestionIndex = 0;
+            errorQuestions = [];
+            userAnswers = Array(filteredQuestions.length).fill(null);
+            updateProgress();
+            loadQuestion();
+        }
+
+        // 加载题目
+        function loadQuestion() {
+            const container = document.getElementById('quiz-container');
+            container.innerHTML = '';
+            if (currentQuestionIndex >= filteredQuestions.length) {
+                container.innerHTML = `<div class="question">已完成所有题目！</div>`;
+                showErrorList();
+                return;
+            }
+
+            const q = filteredQuestions[currentQuestionIndex];
+            container.innerHTML = `
+                <div class="question">
+                    <h3>${currentQuestionIndex + 1}. ${q.question}</h3>
+                    <div class="options"></div>
+                </div>
+            `;
+            const optionsContainer = container.querySelector('.options');
+
+            // 背题模式：直接显示答案
+            if (currentMode === '背题') {
+                let answerText = '';
+                if (q.type === '判断题') {
+                    answerText = `✅ 正确答案：${q.answer}`;
+                } else if (q.type === '选择题') {
+                    answerText = `✅ 正确答案：${q.options.find(opt => opt.startsWith(q.answer))}`;
+                } else if (q.type === '填空题') {
+                    answerText = `✅ 正确答案：${q.answers.join(' / ')}`;
+                }
+                optionsContainer.innerHTML = `<div class="feedback">${answerText}</div>`;
+                return;
+            }
+
+            // 判断题/选择题
+            if (q.type === '判断题' || q.type === '选择题') {
+                q.options.forEach(option => {
+                    const btn = document.createElement('div');
+                    btn.className = 'option';
+                    btn.textContent = option;
+                    if (userAnswers[currentQuestionIndex]) {
+                        const selectedLetter = option.charAt(0);
+                        const correctLetter = userAnswers[currentQuestionIndex].answer?.charAt(0);
+                        if (selectedLetter === correctLetter) {
+                            btn.classList.add('correct');
+                        } else {
+                            btn.classList.add('wrong');
+                        }
+                        btn.style.pointerEvents = 'none';
+                    } else {
+                        btn.onclick = () => checkAnswer(btn, option, q);
+                    }
+                    optionsContainer.appendChild(btn);
+                });
+            }
+
+            // 填空题
+            if (q.type === '填空题') {
+                for (let i = 0; i < q.answers.length; i++) {
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.id = `blank-input-${i}`;
+                    input.placeholder = `空格 ${i + 1}`;
+                    if (userAnswers[currentQuestionIndex]) {
+                        input.value = userAnswers[currentQuestionIndex]?.userInputs?.[i] || '';
+                        input.disabled = true;
+                    }
+                    optionsContainer.appendChild(input);
+                }
+
+                const submitBtn = document.createElement('button');
+                submitBtn.textContent = '提交';
+                submitBtn.className = 'submit-btn';
+                submitBtn.onclick = () => checkMultiBlankAnswer(q.answers, optionsContainer);
+                optionsContainer.appendChild(submitBtn);
+            }
+        }
+
+        // 判断题/选择题答案验证
+        function checkAnswer(element, selectedOption, question) {
+            const optionsContainer = document.querySelector('.options');
+            const feedback = document.createElement('div');
+            feedback.className = 'feedback';
+            feedback.style.marginTop = '15px';
+
+            // 禁用所有选项
+            document.querySelectorAll('.option').forEach(opt => {
+                opt.style.pointerEvents = 'none';
+            });
+
+            // 提取选项字母进行比较
+            const selectedLetter = selectedOption.charAt(0);
+            const correctLetter = question.answer.charAt(0);
+            userAnswers[currentQuestionIndex] = {
+                isCorrect: selectedLetter === correctLetter,
+                answer: selectedLetter
+            };
+
+            // 显示反馈
+            if (selectedLetter === correctLetter) {
+                element.classList.add('correct');
+                feedback.textContent = `✔ 正确！正确答案：${question.answer}`;
+                feedback.style.color = '#155724';
+            } else {
+                element.classList.add('wrong');
+                feedback.textContent = `✘ 错误！正确答案：${question.answer}`;
+                feedback.style.color = '#721c24';
+                errorQuestions.push(question);
+            }
+
+            optionsContainer.appendChild(feedback);
+            saveProgress(); // 自动保存进度
+        }
+
+        // 填空题答案验证
+        function checkMultiBlankAnswer(correctAnswers, optionsContainer) {
+            const inputs = document.querySelectorAll('input[type="text"]');
+            const userInputs = Array.from(inputs).map(input => input.value.trim().toLowerCase());
+            const correctFlags = userInputs.map((input, i) => input === correctAnswers[i].toLowerCase());
+
+            userAnswers[currentQuestionIndex] = {
+                isCorrect: correctFlags.every(flag => flag),
+                userInputs: userInputs
+            };
+
+            inputs.forEach(input => input.disabled = true);
+
+            const feedback = document.createElement('div');
+            feedback.className = 'feedback';
+            feedback.style.marginTop = '15px';
+
+            if (userAnswers[currentQuestionIndex].isCorrect) {
+                feedback.textContent = '✔ 正确！';
+                feedback.style.color = '#155724';
+            } else {
+                let feedbackText = '✘ 错误！正确答案：<br>';
+                for (let i = 0; i < correctAnswers.length; i++) {
+                    feedbackText += `空格 ${i + 1}：${correctAnswers[i]}<br>`;
+                }
+                feedback.innerHTML = feedbackText;
+                feedback.style.color = '#721c24';
+                errorQuestions.push(filteredQuestions[currentQuestionIndex]);
+            }
+
+            optionsContainer.appendChild(feedback);
+            saveProgress(); // 自动保存进度
+        }
+
+        // 显示错题列表
+        function showErrorList() {
+            const errorList = document.getElementById('error-items');
+            const errorContainer = document.getElementById('error-list');
+            errorList.innerHTML = '';
+            if (errorQuestions.length === 0) {
+                errorContainer.style.display = 'none';
+                return;
+            }
+
+            errorQuestions.forEach((q, index) => {
+                const li = document.createElement('li');
+                if (q.answers) {
+                    li.textContent = `${index + 1}. ${q.question}（正确答案：${q.answers.join(' / ')}）`;
+                } else if (q.type === '判断题' || q.type === '选择题') {
+                    li.textContent = `${index + 1}. ${q.question}（正确答案：${q.answer}）`;
+                }
+                errorList.appendChild(li);
+            });
+
+            errorContainer.style.display = 'block';
+        }
+
+        // 随机练习错题
+        function reviewRandomErrors() {
+            if (errorQuestions.length === 0) {
+                alert('暂无错题记录');
+                return;
+            }
+            filteredQuestions = shuffleArray([...errorQuestions]);
+            currentQuestionIndex = 0;
+            errorQuestions = [];
+            updateProgress();
+            loadQuestion();
+        }
+
+        // 上一题
+        function prevQuestion() {
+            if (currentQuestionIndex > 0) {
+                currentQuestionIndex--;
+                updateProgress();
+                loadQuestion();
+            }
+        }
+
+        // 下一题
+        function nextQuestion() {
+            if (currentQuestionIndex < filteredQuestions.length - 1) {
+                currentQuestionIndex++;
+                updateProgress();
+                loadQuestion();
+            }
+        }
+
+        // 重新开始
+        function restartQuiz() {
+            currentQuestionIndex = 0;
+            errorQuestions = [];
+            userAnswers = Array(filteredQuestions.length).fill(null);
+            updateProgress();
+            loadQuestion();
+        }
+
+        // 更新进度条
+        function updateProgress() {
+            const total = filteredQuestions.length;
+            const current = currentQuestionIndex + 1;
+            const percent = total ? Math.round(current / total * 100) : 0;
+            document.getElementById('progress-bar').value = percent;
+            document.getElementById('progress-text').textContent = `已完成 ${current} / ${total} 题`;
+        }
+
+        // 保存进度
+        function saveProgress() {
+            const progress = {
+                mode: currentMode,
+                index: currentQuestionIndex,
+                answers: userAnswers,
+                errors: errorQuestions
+            };
+            localStorage.setItem('plc_quiz_progress', JSON.stringify(progress));
+        }
+
+        // 页面加载时恢复进度
+        window.onload = () => {
+            const saved = localStorage.getItem('plc_quiz_progress');
+            if (saved) {
+                const progress = JSON.parse(saved);
+                currentMode = progress.mode;
+                currentQuestionIndex = progress.index;
+                userAnswers = progress.answers;
+                errorQuestions = progress.errors;
+                setMode(currentMode);
+            } else {
+                setMode('all');
+            }
+        };
+    </script>
+</body>
+</html>
